@@ -42,7 +42,7 @@ class SearchServiceImplTest {
         when(clientMock.search(any(SearchRequest.class), eq(SearchHit.class))).thenReturn(searchResponse);
 
         final SearchServiceImpl searchService = new SearchServiceImpl(clientMock);
-        final de.julielab.smithsearch.data.SearchResponse smithResponse = searchService.search(new de.julielab.smithsearch.data.SearchRequest("test-query", 15, 10));
+        final de.julielab.smithsearch.data.SearchResponse smithResponse = searchService.search(new de.julielab.smithsearch.data.SearchRequest("test-query", 15, 10, true));
 
         assertEquals(1, smithResponse.getHits().size());
         assertEquals(1, smithResponse.getNumHits());

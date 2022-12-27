@@ -13,7 +13,7 @@
         "store": true
       },
       "text": {
-        "type": "text",
+        "type": "preanalyzed",
         "store": true
       },
       "entity_ids": {

@@ -17,5 +17,7 @@ public class SearchRequest {
     private int from;
     @NonNull
     private int size;
+    @NonNull
+    private boolean doHighlighting;
     private List<Sorting> sorting = Collections.emptyList();
 }
