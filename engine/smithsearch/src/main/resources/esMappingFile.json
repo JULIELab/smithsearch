@@ -1,0 +1,24 @@
+{
+  "settings": {
+    "number_of_shards": 2,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "_source": {
+      "enabled": false
+    },
+    "properties": {
+      "doc_id": {
+        "type": "keyword",
+        "store": true
+      },
+      "text": {
+        "type": "text",
+        "store": true
+      },
+      "entity_ids": {
+        "type": "keyword"
+      }
+    }
+  }
+}

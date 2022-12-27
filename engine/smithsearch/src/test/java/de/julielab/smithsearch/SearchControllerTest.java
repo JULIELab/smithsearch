@@ -35,6 +35,7 @@ class SearchControllerTest {
     private WebApplicationContext webApplicationContext;
 
     private MockMvc mockMvc;
+
     @BeforeEach
     public void setup() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.webApplicationContext).build();

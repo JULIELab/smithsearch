@@ -1,20 +1,28 @@
 package de.julielab.smithsearch.services;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.SortOptions;
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.SimpleQueryStringFlags;
 import co.elastic.clients.elasticsearch._types.query_dsl.SimpleQueryStringQuery;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation;
 import de.julielab.smithsearch.data.SearchHit;
+import de.julielab.smithsearch.data.Sorting;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Component
+@Scope(value = "singleton")
 public class SearchServiceImpl implements SearchService {
 
     public static final String FIELD_TEXT = "text";
+    public static final String FIELD_DOCID = "doc_id";
     private ElasticsearchClient client;
 
     public SearchServiceImpl(ElasticsearchClient client) {
@@ -23,6 +31,8 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public de.julielab.smithsearch.data.SearchResponse search(de.julielab.smithsearch.data.SearchRequest searchRequest) throws IOException {
+        final List<SortOptions> sortOptions = searchRequest.getSorting().stream().map(s -> SortOptions.of(b -> b.field(f -> f.field(s.getField()).order(s.getOrder() == Sorting.Order.asc ? SortOrder.Asc : SortOrder.Desc)))).toList();
+
         final SimpleQueryStringQuery query = SimpleQueryStringQuery.of(b -> b
                 .query(searchRequest.getQuery())
                 .flags(SimpleQueryStringFlags.of(f -> f.multiple("ALL"))));
@@ -31,6 +41,7 @@ public class SearchServiceImpl implements SearchService {
                         .from(searchRequest.getFrom())
                         .size(searchRequest.getSize())
                         .source(b -> b.fetch(false))
+                        .sort(sortOptions)
                         .query(b -> b.simpleQueryString(query)));
 
         final SearchResponse<SearchHit> response = client.search(esSearchRequest, SearchHit.class);
