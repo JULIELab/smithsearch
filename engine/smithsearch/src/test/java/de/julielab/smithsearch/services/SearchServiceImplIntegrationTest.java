@@ -1,6 +1,9 @@
 package de.julielab.smithsearch.services;
 
 import com.google.gson.Gson;
+import de.julielab.jcore.consumer.es.filter.FilterChain;
+import de.julielab.jcore.consumer.es.filter.LowerCaseFilter;
+import de.julielab.jcore.consumer.es.filter.SnowballFilter;
 import de.julielab.jcore.consumer.es.preanalyzed.PreanalyzedFieldValue;
 import de.julielab.jcore.consumer.es.preanalyzed.PreanalyzedToken;
 import de.julielab.smithsearch.data.SearchHit;
@@ -163,7 +166,7 @@ public class SearchServiceImplIntegrationTest {
 
     /**
      * <p>Converts the given string to a preanalyzed field value in JSON format.</p>
-     * <p>The input string is tokenized in a simple way. No other handling on the tokens is performed, i.e. no case-folding, stemming etc.</p>
+     * <p>The input string is tokenized in a simple way, lower-cased and stemmed.</p>
      * <p>Additional tokens are added when a token of the input is also the key of the given map. Then, the map value is used as the term for a token that is "stacked" onto the original token.</p>
      * <p>For ElasticSearch to accept such a value, the JULIE Lab PreanalyzedFieldMapper must be installed as an
      * ElasticSearch plugin.</p>
@@ -172,22 +175,27 @@ public class SearchServiceImplIntegrationTest {
      * @return The serialized PreanalyzedFieldValue in JSON format.
      */
     private String convertToSerializedPreanalyzedFieldValue(String input, Map<String, String> additionalTokens) {
+        final FilterChain tokenFilter = new FilterChain(new LowerCaseFilter(), new SnowballFilter("org.tartarus.snowball.ext.German2Stemmer"));
         // We need Gson here because the PreanalyzedFieldValue (used at the very end of the method) uses Gson
         // annotations for serialization into the correct JSON format. Jackson is currently not supported.
         final Gson gson = new Gson();
         final Pattern tokenizer = Pattern.compile("([^\s\\p{P}]+)|(\\p{P}+)");
         final Matcher tokenMatcher = tokenizer.matcher(input);
-        final List<PreanalyzedToken> token = new ArrayList<>();
+        final List<PreanalyzedToken> tokens = new ArrayList<>();
         while (tokenMatcher.find()) {
             for (int i = 0; i < tokenMatcher.groupCount(); i++) {
                 int groupNum = i + 1;
                 if (tokenMatcher.group(groupNum) != null) {
                     final PreanalyzedToken t = new PreanalyzedToken();
+                    final String tokenString = tokenMatcher.group(groupNum);
+                    final String filteredToken = tokenFilter.filter(tokenString).get(0);
                     t.start = tokenMatcher.start(groupNum);
                     t.end = tokenMatcher.end(groupNum);
-                    t.term = tokenMatcher.group(groupNum);
-                    token.add(t);
-                    final String additionalTerm = additionalTokens.get(t.term);
+                    t.term = filteredToken;
+                    System.out.println(t.term);
+                    tokens.add(t);
+                    // We use the original token here so it is easier to create the map.
+                    final String additionalTerm = additionalTokens.get(tokenString);
                     if (additionalTerm != null) {
                         // 'additional tokens' are tokens that are stacked at the same position as the original token with the same
                         // offsets. In this way, one can search for the additional term and highlight the original term
@@ -198,12 +206,12 @@ public class SearchServiceImplIntegrationTest {
                         // the positionIncrement is key: normal is 1, 0 zero means that this token and the previous token
                         // are at the same position
                         additionalToken.positionIncrement = 0;
-                        token.add(additionalToken);
+                        tokens.add(additionalToken);
                     }
                 }
             }
         }
-        return gson.toJson(new PreanalyzedFieldValue(input, token));
+        return gson.toJson(new PreanalyzedFieldValue(input, tokens));
     }
 
 }

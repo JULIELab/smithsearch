@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -53,10 +54,10 @@ class SearchControllerTest {
     @Test
     void search() throws Exception {
         final ObjectMapper om = new ObjectMapper();
-        final SearchRequest searchRequest = new SearchRequest();
+        final SearchRequest searchRequest = new SearchRequest("query", 0, 3, false);
         final MvcResult mvcResult = this.mockMvc.perform(post("/search").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(searchRequest)).characterEncoding(StandardCharsets.UTF_8)).andDo(print()).andReturn();
         assertEquals(MediaType.APPLICATION_JSON_VALUE, mvcResult.getResponse().getContentType());
         final SearchResponse searchResponse = om.readValue(mvcResult.getResponse().getContentAsString(), SearchResponse.class);
-        assertEquals(null, searchResponse.getHits());
+        assertEquals(Collections.emptyList(), searchResponse.getHits());
     }
 }

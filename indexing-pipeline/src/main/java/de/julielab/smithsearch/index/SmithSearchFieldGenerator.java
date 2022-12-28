@@ -1,6 +1,9 @@
 package de.julielab.smithsearch.index;
 
 import de.julielab.jcore.consumer.es.*;
+import de.julielab.jcore.consumer.es.filter.FilterChain;
+import de.julielab.jcore.consumer.es.filter.LowerCaseFilter;
+import de.julielab.jcore.consumer.es.filter.SnowballFilter;
 import de.julielab.jcore.consumer.es.preanalyzed.Document;
 import de.julielab.jcore.consumer.es.preanalyzed.PreanalyzedFieldValue;
 import de.julielab.jcore.consumer.es.preanalyzed.PreanalyzedToken;
@@ -24,8 +27,9 @@ public class SmithSearchFieldGenerator extends FieldGenerator {
 
         final FeaturePathSets entityIdFeatureSet = new FeaturePathSets(new FeaturePathSet(EntityMention.type, List.of("/specificType")));
         final List<PreanalyzedToken> preanalyzedTokens;
+        final FilterChain filterChain = new FilterChain(new LowerCaseFilter(), new SnowballFilter("org.tartarus.snowball.ext.German2Stemmer"));
         try {
-            preanalyzedTokens = getTokensForAnnotationIndexes(entityIdFeatureSet, null, true, PreanalyzedToken.class, null, null, aJCas);
+            preanalyzedTokens = getTokensForAnnotationIndexes(entityIdFeatureSet, filterChain, true, PreanalyzedToken.class, null, null, aJCas);
         } catch (CASException e) {
             log.error("Creation of preanalyzed tokens failed.", e);
             throw new FieldGenerationException(e);
