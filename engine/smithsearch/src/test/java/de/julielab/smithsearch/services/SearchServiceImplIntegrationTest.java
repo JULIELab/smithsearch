@@ -1,14 +1,13 @@
 package de.julielab.smithsearch.services;
 
+import com.google.gson.Gson;
 import de.julielab.jcore.consumer.es.preanalyzed.PreanalyzedFieldValue;
 import de.julielab.jcore.consumer.es.preanalyzed.PreanalyzedToken;
 import de.julielab.smithsearch.data.SearchHit;
 import de.julielab.smithsearch.data.SearchRequest;
 import de.julielab.smithsearch.data.SearchResponse;
 import de.julielab.smithsearch.data.Sorting;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +19,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import org.testcontainers.shaded.org.apache.commons.io.IOUtils;
 
@@ -39,16 +39,20 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.assertj.core.api.Assertions.*;
+
 @SpringBootTest
+@Testcontainers
 public class SearchServiceImplIntegrationTest {
     public static final Path MAPPING_PATH = Path.of("src", "main", "resources", "esMappingFile.json");
-    public static final String TEST_INDEX = "gepi_testindex";
-    public static final String TEST_CLUSTER = "gepi_testcluster";
+    public static final String TEST_INDEX = "testindex";
+    public static final String TEST_CLUSTER = "testcluster";
     private final static Logger log = LoggerFactory.getLogger(SearchServiceImplIntegrationTest.class);
 
+    @Container
     private static final GenericContainer es = new GenericContainer(
             new ImageFromDockerfile("smithsearch-it", true)
-                    .withFileFromClasspath("Dockerfile", "dockercontext/Dockerfile"))
+                    .withFileFromClasspath("Dockerfile", "dockercontext/Dockerfile")
+                    .withFileFromClasspath("elasticsearch-mapper-preanalyzed-7.17.8.zip", "dockercontext/elasticsearch-mapper-preanalyzed-7.17.8.zip"))
             .withExposedPorts(9200)
             .withEnv("cluster.name", TEST_CLUSTER)
             .withEnv("discovery.type", "single-node");
@@ -59,24 +63,20 @@ public class SearchServiceImplIntegrationTest {
 
     @DynamicPropertySource
     static void registerEsConnectionProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.elasticsearch.uris", () -> "http://"+es.getHost() + ":" + es.getMappedPort(9200));
+        registry.add("spring.elasticsearch.uris", () -> "http://" + es.getHost() + ":" + es.getMappedPort(9200));
     }
 
-    @BeforeEach
-    void startEs() {
-        es.start();
-    }
 
     @AfterEach
-    void tearDown() {
-        es.stop();
+    void tearDown() throws Exception {
+        deleteIndex(TEST_INDEX);
     }
 
     @Test
     public void search() throws Exception {
         putEsMapping(MAPPING_PATH);
         indexTestDocuments(10);
-        final SearchRequest searchRequest = new SearchRequest("aspirin", 2, 5, true);
+        final SearchRequest searchRequest = new SearchRequest("Aspirin", 2, 5, true);
         searchRequest.setSorting(List.of(new Sorting(SearchServiceImpl.FIELD_DOCID, Sorting.Order.asc)));
         final SearchResponse searchResponse = searchService.search(searchRequest);
         assertEquals(5, searchResponse.getHits().size());
@@ -93,16 +93,27 @@ public class SearchServiceImplIntegrationTest {
         searchRequest.setSorting(List.of(new Sorting(SearchServiceImpl.FIELD_DOCID, Sorting.Order.asc)));
         final SearchResponse searchResponse = searchService.search(searchRequest);
         assertEquals(2, searchResponse.getHits().size());
-        assertThat(searchResponse.getHits()).extracting(SearchHit::getDocId).containsExactlyInAnyOrder("2", "3", "4", "5", "6");
+        assertThat(searchResponse.getHits()).extracting(SearchHit::getDocId).containsExactlyInAnyOrder("7", "8");
         assertEquals(10, searchResponse.getNumHits());
         assertEquals("Aspirin wirkt auch in Dokument nr. 7 gut gegen <em>Kopfschmerzen</em>.", searchResponse.getHits().get(0).getText());
     }
 
+    private void deleteIndex(String indexName) throws Exception {
+        URL url = new URL("http://localhost:" + es.getMappedPort(9200) + "/" + indexName);
+        HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+        urlConnection.setRequestProperty("Content-Type", "application/json");
+        urlConnection.setRequestMethod("DELETE");
+        log.debug("Response for index deletion: {}", urlConnection.getResponseMessage());
+        if (urlConnection.getErrorStream() != null)
+            log.debug("Error messages for index deletion: {}", IOUtils.toString(urlConnection.getErrorStream(), UTF_8));
+    }
+
     private void indexTestDocuments(int numDocs) throws IOException, InterruptedException {
         List<String> bulkCommandLines = new ArrayList<>();
+        final Map<String, String> entityIds = Map.of("Aspirin", "id1", "Kopfschmerzen", "id2");
         ObjectMapper om = new ObjectMapper();
         for (int i = 0; i < numDocs; i++) {
-            Map<String, String> doc = Map.of(SearchServiceImpl.FIELD_TEXT, "[Aspirin](id1) wirkt auch in Dokument nr. " + i + " gut gegen [Kopfschmerzen](id2).", SearchServiceImpl.FIELD_DOCID, String.valueOf(i));
+            Map<String, Object> doc = Map.of(SearchServiceImpl.FIELD_TEXT, convertToSerializedPreanalyzedFieldValue("Aspirin wirkt auch in Dokument nr. " + i + " gut gegen Kopfschmerzen.", entityIds), SearchServiceImpl.FIELD_DOCID, String.valueOf(i));
             String jsonContents = om.writeValueAsString(doc);
             Map<String, Object> indexMap = new HashMap<>();
             indexMap.put("_index", TEST_INDEX);
@@ -113,7 +124,7 @@ public class SearchServiceImplIntegrationTest {
             bulkCommandLines.add(om.writeValueAsString(map));
             bulkCommandLines.add(jsonContents);
         }
-        log.debug("Indexing test documents");
+        log.info("Indexing test documents");
         URL url = new URL("http://localhost:" + es.getMappedPort(9200) + "/_bulk");
         HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
         urlConnection.setRequestProperty("Content-Type", "application/json");
@@ -126,11 +137,11 @@ public class SearchServiceImplIntegrationTest {
             log.debug("Error messages for indexing: {}", IOUtils.toString(urlConnection.getErrorStream(), UTF_8));
 
         Thread.sleep(2000);
-            URL countUrl = new URL("http://localhost:" + es.getMappedPort(9200) + "/" + TEST_INDEX + "/_count");
-            HttpURLConnection countUrlConnection = (HttpURLConnection) countUrl.openConnection();
-            String countResponse = IOUtils.toString(countUrlConnection.getInputStream(), UTF_8);
-            log.debug("Response for the count of documents: {}", countResponse);
-            assertTrue(countResponse.contains("count\":10"));
+        URL countUrl = new URL("http://localhost:" + es.getMappedPort(9200) + "/" + TEST_INDEX + "/_count");
+        HttpURLConnection countUrlConnection = (HttpURLConnection) countUrl.openConnection();
+        String countResponse = IOUtils.toString(countUrlConnection.getInputStream(), UTF_8);
+        log.debug("Response for the count of documents: {}", countResponse);
+        assertTrue(countResponse.contains("count\":" + numDocs), "Count returned unexpected response: " + countResponse);
     }
 
     private void putEsMapping(Path mappingPath) throws Exception {
@@ -150,18 +161,49 @@ public class SearchServiceImplIntegrationTest {
         }
     }
 
-    private PreanalyzedFieldValue convertToPreanalyzedFieldValue(String input) {
-        final Pattern tokenizer = Pattern.compile("[^\s]+");
+    /**
+     * <p>Converts the given string to a preanalyzed field value in JSON format.</p>
+     * <p>The input string is tokenized in a simple way. No other handling on the tokens is performed, i.e. no case-folding, stemming etc.</p>
+     * <p>Additional tokens are added when a token of the input is also the key of the given map. Then, the map value is used as the term for a token that is "stacked" onto the original token.</p>
+     * <p>For ElasticSearch to accept such a value, the JULIE Lab PreanalyzedFieldMapper must be installed as an
+     * ElasticSearch plugin.</p>
+     * @param input Some text.
+     * @param additionalTokens Map from token strings that should be the result of the tokenization of the input to terms that should be stacked onto the token, e.g. entity IDs.
+     * @return The serialized PreanalyzedFieldValue in JSON format.
+     */
+    private String convertToSerializedPreanalyzedFieldValue(String input, Map<String, String> additionalTokens) {
+        // We need Gson here because the PreanalyzedFieldValue (used at the very end of the method) uses Gson
+        // annotations for serialization into the correct JSON format. Jackson is currently not supported.
+        final Gson gson = new Gson();
+        final Pattern tokenizer = Pattern.compile("([^\s\\p{P}]+)|(\\p{P}+)");
         final Matcher tokenMatcher = tokenizer.matcher(input);
         final List<PreanalyzedToken> token = new ArrayList<>();
         while (tokenMatcher.find()) {
-            final PreanalyzedToken t = new PreanalyzedToken();
-            t.start = tokenMatcher.start();
-            t.end = tokenMatcher.end();
-            t.term = tokenMatcher.group();
-            token.add(t);
+            for (int i = 0; i < tokenMatcher.groupCount(); i++) {
+                int groupNum = i + 1;
+                if (tokenMatcher.group(groupNum) != null) {
+                    final PreanalyzedToken t = new PreanalyzedToken();
+                    t.start = tokenMatcher.start(groupNum);
+                    t.end = tokenMatcher.end(groupNum);
+                    t.term = tokenMatcher.group(groupNum);
+                    token.add(t);
+                    final String additionalTerm = additionalTokens.get(t.term);
+                    if (additionalTerm != null) {
+                        // 'additional tokens' are tokens that are stacked at the same position as the original token with the same
+                        // offsets. In this way, one can search for the additional term and highlight the original term
+                        final PreanalyzedToken additionalToken = new PreanalyzedToken();
+                        additionalToken.term = additionalTerm;
+                        additionalToken.start = t.start;
+                        additionalToken.end = t.end;
+                        // the positionIncrement is key: normal is 1, 0 zero means that this token and the previous token
+                        // are at the same position
+                        additionalToken.positionIncrement = 0;
+                        token.add(additionalToken);
+                    }
+                }
+            }
         }
-        return new PreanalyzedFieldValue(input, token);
+        return gson.toJson(new PreanalyzedFieldValue(input, token));
     }
 
 }
