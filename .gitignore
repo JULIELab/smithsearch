@@ -27,6 +27,8 @@ lib/
 desc/
 pipeline-error*
 indexing-pipeline/data
+indexing-pipeline/resources
+missing_configuration.txt
 
 # IntelliJ
 .idea
