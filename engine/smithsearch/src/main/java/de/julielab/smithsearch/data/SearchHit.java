@@ -14,4 +14,5 @@ import java.util.List;
 public class SearchHit {
     private String docId;
     private String text;
+    private List<String> highlights;
 }

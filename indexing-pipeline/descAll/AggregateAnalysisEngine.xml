@@ -19,9 +19,9 @@
                     
         </delegateAnalysisEngine>
                 
-        <delegateAnalysisEngine key="GazetteerAnnotator, Template Descriptor with Configurable External Resource">
+        <delegateAnalysisEngine key="ICD10 Gazetteer">
                         
-            <import location="GazetteerAnnotator, Template Descriptor with Configurable External Resource.xml"/>
+            <import location="ICD10 Gazetteer.xml"/>
                     
         </delegateAnalysisEngine>
             
@@ -43,7 +43,7 @@
                                 
                 <node>JCoRe Token Annotator</node>
                                 
-                <node>GazetteerAnnotator, Template Descriptor with Configurable External Resource</node>
+                <node>ICD10 Gazetteer</node>
                             
             </fixedFlow>
                     

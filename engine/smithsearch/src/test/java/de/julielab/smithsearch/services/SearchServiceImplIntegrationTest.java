@@ -85,7 +85,8 @@ public class SearchServiceImplIntegrationTest {
         assertEquals(5, searchResponse.getHits().size());
         assertThat(searchResponse.getHits()).extracting(SearchHit::getDocId).containsExactlyInAnyOrder("2", "3", "4", "5", "6");
         assertEquals(10, searchResponse.getNumHits());
-        assertEquals("<em>Aspirin</em> wirkt auch in Dokument nr. 2 gut gegen Kopfschmerzen.", searchResponse.getHits().get(0).getText());
+        assertEquals("<em>Aspirin</em> wirkt auch in Dokument nr. 2 gut gegen Kopfschmerzen.", searchResponse.getHits().get(0).getHighlights().get(0));
+        assertEquals("Aspirin wirkt auch in Dokument nr. 2 gut gegen Kopfschmerzen.", searchResponse.getHits().get(0).getText());
     }
 
     @Test
@@ -98,7 +99,7 @@ public class SearchServiceImplIntegrationTest {
         assertEquals(2, searchResponse.getHits().size());
         assertThat(searchResponse.getHits()).extracting(SearchHit::getDocId).containsExactlyInAnyOrder("7", "8");
         assertEquals(10, searchResponse.getNumHits());
-        assertEquals("Aspirin wirkt auch in Dokument nr. 7 gut gegen <em>Kopfschmerzen</em>.", searchResponse.getHits().get(0).getText());
+        assertEquals("Aspirin wirkt auch in Dokument nr. 7 gut gegen <em>Kopfschmerzen</em>.", searchResponse.getHits().get(0).getHighlights().get(0));
     }
 
     private void deleteIndex(String indexName) throws Exception {
@@ -192,7 +193,6 @@ public class SearchServiceImplIntegrationTest {
                     t.start = tokenMatcher.start(groupNum);
                     t.end = tokenMatcher.end(groupNum);
                     t.term = filteredToken;
-                    System.out.println(t.term);
                     tokens.add(t);
                     // We use the original token here so it is easier to create the map.
                     final String additionalTerm = additionalTokens.get(tokenString);

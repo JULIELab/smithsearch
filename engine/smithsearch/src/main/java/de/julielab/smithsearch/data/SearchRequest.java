@@ -19,5 +19,6 @@ public class SearchRequest {
     private int size;
     @NonNull
     private boolean doHighlighting;
+    private boolean doFaceting;
     private List<Sorting> sorting = Collections.emptyList();
 }

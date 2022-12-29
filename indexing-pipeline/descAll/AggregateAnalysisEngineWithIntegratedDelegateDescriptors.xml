@@ -331,7 +331,7 @@
                                 
                 <analysisEngineMetaData>
                                         
-                    <name>GazetteerAnnotator, Template Descriptor with Configurable External Resource</name>
+                    <name>ICD10 Gazetteer</name>
                                         
                     <description>This is a minimal template for the use with the JCoRe component using the Lingpipe Gazetteer Chunker.
             It must be set which exact annotation type should be created for recognized dictionary entries and
@@ -470,7 +470,7 @@
                                                         
                             <configurableDataResourceSpecifier>
                                                                 
-                                <url>file:resources/ICD10-2022.dict</url>
+                                <url>file:resources/ICD10-2022-reversed.dict</url>
                                                                 
                                 <resourceMetaData>
                                                                         

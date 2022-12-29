@@ -15,4 +15,5 @@ public class SearchResponse {
     private List<SearchHit> hits;
     private long numHits;
     private String numHitsRelation;
+    List<EntityIdCount> entityIdCounts;
 }
