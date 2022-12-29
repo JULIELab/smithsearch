@@ -6,7 +6,7 @@
 
     <groupId>org.example</groupId>
     <artifactId>smithsearch-indexing-pipeline</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -17,7 +17,7 @@
         <dependency>
             <groupId>de.julielab</groupId>
             <artifactId>jcore-elasticsearch-consumer</artifactId>
-            <version>2.6.2-SNAPSHOT</version>
+            <version>2.6.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
