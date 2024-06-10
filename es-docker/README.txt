@@ -6,5 +6,5 @@ Create and run a container based on the image:
 docker run -d --name elasticsearch-preanalyzed-smith -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" elasticsearch-preanalyzed-smith:<tag>
 
 And, finally, create an index:
-curl -XPUT http://localhost:9200/smith -H 'Content-Type: application/json' -d @../engine/smithsearch/src/main/resources/esMappingFile.json 
+curl -XPUT http://localhost:9200/smith -H 'Content-Type: application/json' -d @../engine/src/main/resources/esMappingFile.json
 

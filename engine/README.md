@@ -2,7 +2,7 @@
 
 The quickest way to start up the Web application is to use the official Docker image like this:
 ```
-docker run --rm -p 8080:8080 -v julielab/smithsearch:1.0.0
+docker run --rm -p 8080:8080 julielab/smithsearch:1.0.0
 ```
 
 Then, the web service will be available at `http://localhost:8080/search`. An ElasticSearch instance will be expected at `http://localhost:9200`.
